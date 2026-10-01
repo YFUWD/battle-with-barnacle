@@ -130,6 +130,33 @@ const HEAD_SQUASH_FRAMES = 45;
 
 const TOKEN_DROP_RATE = 0.5;     // 小怪掉 Token 的概率（清屏大招杀死的同样判定）
 
+// ---------------- 访问计数（不蒜子）----------------
+// 不蒜子的脚本会把数字写进 index.html 里两个隐藏 span，
+// 这里读出来画到主菜单。被广告拦截器拦掉时读不到 -> 返回 null -> 界面不显示，游戏照常。
+let siteStatsCache = null;
+let siteStatsTick = 0;
+function siteStats() {
+  if (typeof document === 'undefined' || !document.getElementById) return null;
+  // 不用每帧读 DOM，约每 30 帧刷一次
+  if (siteStatsTick++ % 30 !== 0) return siteStatsCache;
+
+  const read = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return NaN;
+    const n = parseInt(String(el.textContent).replace(/[^\d]/g, ''), 10);
+    return isFinite(n) ? n : NaN;
+  };
+  const uv = read('busuanzi_value_site_uv');
+  const pv = read('busuanzi_value_site_pv');
+
+  if (!isFinite(uv) && !isFinite(pv)) return siteStatsCache;   // 还没加载出来
+  siteStatsCache = {
+    uv: isFinite(uv) ? uv : (siteStatsCache ? siteStatsCache.uv : 0),
+    pv: isFinite(pv) ? pv : (siteStatsCache ? siteStatsCache.pv : 0)
+  };
+  return siteStatsCache;
+}
+
 // ---------------- 西装藤壶：三角形身体 + 头部圆圈 ----------------
 // 头部圆圈（弱点黄球就放在这里面）
 const SUIT_BARNACLE_HEAD_X = W / 2;

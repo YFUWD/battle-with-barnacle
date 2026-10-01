@@ -1174,6 +1174,23 @@ function drawIntroUI() {
     b.x + b.w / 2, b.y + b.h / 2
   );
 
+  // ---- 主菜单底部：访问人数（不蒜子；被拦截或还没加载就不画） ----
+  const st = (typeof siteStats === 'function') ? siteStats() : null;
+  if (st && st.uv > 0) {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(255,255,255,0.82)';
+    ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
+    ctx.fillText('已有 ' + st.uv.toLocaleString('en-US') + ' 位玩家出战', W / 2, b.y + b.h + 46);
+    if (st.pv > 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      ctx.font = '16px "Segoe UI", Arial, sans-serif';
+      ctx.fillText('累计访问 ' + st.pv.toLocaleString('en-US') + ' 次', W / 2, b.y + b.h + 76);
+    }
+    ctx.restore();
+  }
+
   // ---- 主菜单右上角：静音按钮 ----
   const muteOn = (typeof isMuted === 'function') && isMuted();
   ctx.save();

@@ -10,10 +10,18 @@
 <meta property="og:image" content="素材/胜利CG.png">
 <title>大肥鱼大战西装藤壶</title>
 <link rel="icon" href="素材/抠好的/basin_full.png">
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body>
 <canvas id="game" width="1440" height="810"></canvas>
+
+<!-- 访问统计（不蒜子，免注册）。数字会被写进下面两个隐藏的 span，
+     游戏每半秒读一次，画在主菜单上。被广告拦截器拦掉时读不到，界面上就不显示，不影响游戏。 -->
+<div style="display:none">
+  <span id="busuanzi_value_site_pv"></span>
+  <span id="busuanzi_value_site_uv"></span>
+</div>
+<script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
 
 <script>
 // 电脑版=off，手机版=on，不指定=auto（检测到触屏才出按键）
@@ -23,15 +31,15 @@
   window.DSH_TOUCH_MODE = q || 'auto';
 })();
 </script>
-<script src="js/config.js?v=4"></script>
-<script src="js/audio.js?v=4"></script>
-<script src="js/assets.js?v=4"></script>
-<script src="js/player.js?v=4"></script>
-<script src="js/boss.js?v=4"></script>
-<script src="js/phase2.js?v=4"></script>
-<script src="js/combat.js?v=4"></script>
-<script src="js/touch.js?v=4"></script>
-<script src="js/render.js?v=4"></script>
-<script src="js/main.js?v=4"></script>
+<script src="js/config.js?v=5"></script>
+<script src="js/audio.js?v=5"></script>
+<script src="js/assets.js?v=5"></script>
+<script src="js/player.js?v=5"></script>
+<script src="js/boss.js?v=5"></script>
+<script src="js/phase2.js?v=5"></script>
+<script src="js/combat.js?v=5"></script>
+<script src="js/touch.js?v=5"></script>
+<script src="js/render.js?v=5"></script>
+<script src="js/main.js?v=5"></script>
 </body>
 </html>
