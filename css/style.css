@@ -1,0 +1,10 @@
+html,body{
+  margin:0; height:100%; background:#07090f;
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+  font-family:"Segoe UI", Arial, sans-serif;
+}
+canvas{
+  background:#111; max-width:100vw; max-height:100vh;
+  box-shadow:0 0 60px rgba(0,0,0,.9);
+  border-radius:4px; cursor:crosshair;
+}
