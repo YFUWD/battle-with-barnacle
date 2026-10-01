@@ -118,6 +118,13 @@ if (typeof window !== 'undefined' && window.addEventListener) {
     if (forcedLandscape && !viewportPortrait()) clearForcedLandscape();
     else if (forcedLandscape) layoutForcedCanvas();
   });
+  // 切到后台（QQ 来消息、切 App）时手指的 touchend 可能收不到，先把按键全松开
+  window.addEventListener('blur', function () { touchReleaseAll(); });
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) touchReleaseAll();
+    });
+  }
 }
 
 function touchControlsOn() {
@@ -134,7 +141,7 @@ function touchPress(gx, gy) {
   if (gameState === 'playing') {
     for (const t of TOUCH_TAPS) {
       if (Math.hypot(gx - t.x, gy - t.y) <= t.r + 14) {
-        if (t.id === 'pause') paused = !paused;
+        if (t.id === 'pause') { paused = !paused; touchReleaseAll(); }
         if (t.id === 'mute') toggleMute();
         return null;
       }
@@ -153,7 +160,9 @@ function touchPress(gx, gy) {
   for (const b of TOUCH_KEYS) {
     if (Math.hypot(gx - b.x, gy - b.y) <= b.r + 12) {
       keys[b.key] = true;
-      if (b.key === 'KeyK') actionQueue.push('jump');   // 跳是一次性动作
+      // 键盘那边跳和大招都是"按下瞬间触发"（不走 keys 状态），触屏要对应上
+      if (b.key === 'KeyK') actionQueue.push('jump');
+      if (b.key === 'KeyL') unleashUltimate();
       return b.key;
     }
   }
@@ -225,17 +234,29 @@ function drawTouchControls() {
   if (drawing) {
     for (const b of TOUCH_KEYS) {
       const on = !!keys[b.key];
+      // 大招没集满 3 个 Token 时显示成"灰的"，避免玩家以为按坏了
+      const lackToken = (b.key === 'KeyL' && tokensCollected < 3);
+
       ctx.beginPath();
       ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-      ctx.fillStyle = on ? 'rgba(120,215,255,0.55)' : 'rgba(10,25,45,0.42)';
+      ctx.fillStyle = on ? 'rgba(120,215,255,0.55)'
+                        : (lackToken ? 'rgba(10,25,45,0.28)' : 'rgba(10,25,45,0.42)');
       ctx.fill();
-      ctx.strokeStyle = on ? 'rgba(200,245,255,0.95)' : 'rgba(150,215,255,0.6)';
+      ctx.strokeStyle = on ? 'rgba(200,245,255,0.95)'
+                          : (lackToken ? 'rgba(150,215,255,0.28)' : 'rgba(150,215,255,0.6)');
       ctx.lineWidth = 3;
       ctx.stroke();
 
-      ctx.fillStyle = on ? '#ffffff' : 'rgba(215,240,255,0.9)';
+      ctx.fillStyle = on ? '#ffffff'
+                        : (lackToken ? 'rgba(215,240,255,0.42)' : 'rgba(215,240,255,0.9)');
       ctx.font = 'bold ' + Math.round(b.r * 0.62) + 'px "Segoe UI", Arial, sans-serif';
       ctx.fillText(b.label, b.x, b.y + 2);
+
+      if (lackToken) {
+        ctx.font = 'bold ' + Math.round(b.r * 0.4) + 'px "Segoe UI", Arial, sans-serif';
+        ctx.fillStyle = 'rgba(215,240,255,0.5)';
+        ctx.fillText(tokensCollected + '/3', b.x, b.y + b.r + 18);
+      }
     }
   }
 
