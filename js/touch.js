@@ -13,8 +13,15 @@ const TOUCH_MODE = (typeof window !== 'undefined' && window.DSH_TOUCH_MODE) || '
 function isTouchDevice() {
   if (TOUCH_MODE === 'on')  return true;
   if (TOUCH_MODE === 'off') return false;
-  if (typeof navigator === 'undefined') return false;
-  return (navigator.maxTouchPoints || 0) > 0 || 'ontouchstart' in window;
+
+  // 注意：不能只看 'ontouchstart' in window
+  // —— Windows 上的 Chrome 即使没有触摸屏，这个值也可能是 true，会把按键误显示到电脑上。
+  // 用媒体查询判断"手指输入"：手机/平板是 coarse + hover:none；带触摸屏的笔记本仍有鼠标，hover 成立，不会误判。
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  const coarse  = window.matchMedia('(pointer: coarse)').matches;
+  const noHover = window.matchMedia('(hover: none)').matches;
+  const points  = (typeof navigator !== 'undefined' && navigator.maxTouchPoints) || 0;
+  return (coarse || noHover) && points > 0;
 }
 
 // 按下的都是游戏里已有的键，逻辑不用改
@@ -35,6 +42,84 @@ const TOUCH_TAPS = [
 
 const touchPointers = {};   // touch.identifier -> 正在按的键
 
+// ---------------- 强制横屏 ----------------
+// QQ/微信内置浏览器通常锁不住屏幕方向，所以：
+//   1) 先试着进全屏 + screen.orientation.lock('landscape')（普通手机浏览器能成）
+//   2) 没成就把画布自己转 90°，让玩家把手机横过来看（H5 通用做法）
+let forcedLandscape = false;
+
+function viewportPortrait() {
+  if (typeof window === 'undefined') return false;
+  return window.innerWidth < window.innerHeight;
+}
+
+function enterForcedLandscape() {
+  // ① 全屏 + 尝试锁定方向
+  try {
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if (req) {
+      const p = req.call(el);
+      if (p && p.catch) p.catch(function () {});
+    }
+  } catch (e) {}
+  try {
+    if (typeof screen !== 'undefined' && screen.orientation && screen.orientation.lock) {
+      const p = screen.orientation.lock('landscape');
+      if (p && p.catch) p.catch(function () {});
+    }
+  } catch (e) {}
+
+  // ② 兜底：自己转
+  forcedLandscape = true;
+  layoutForcedCanvas();
+}
+
+function layoutForcedCanvas() {
+  if (!forcedLandscape) return;
+  const el = document.getElementById('game');
+  if (!el) return;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const scale = Math.min(vh / W, vw / H);     // 横过来之后能塞多大
+  const dw = Math.round(W * scale);
+  const dh = Math.round(H * scale);
+  el.style.position = 'fixed';
+  el.style.left = '50%';
+  el.style.top = '50%';
+  el.style.width = dw + 'px';
+  el.style.height = dh + 'px';
+  el.style.maxWidth = 'none';
+  el.style.maxHeight = 'none';
+  el.style.transform = 'translate(-50%,-50%) rotate(90deg)';
+  el.style.transformOrigin = 'center center';
+  el.style.borderRadius = '0';
+}
+
+function clearForcedLandscape() {
+  forcedLandscape = false;
+  try {
+    const el = document.getElementById('game');
+    el.style.position = '';
+    el.style.left = '';
+    el.style.top = '';
+    el.style.width = '';
+    el.style.height = '';
+    el.style.maxWidth = '';
+    el.style.maxHeight = '';
+    el.style.transform = '';
+    el.style.transformOrigin = '';
+    el.style.borderRadius = '';
+  } catch (e) {}
+}
+
+if (typeof window !== 'undefined' && window.addEventListener) {
+  window.addEventListener('resize', function () {
+    // 玩家自己把手机横过来了 -> 取消强制旋转，免得转两下
+    if (forcedLandscape && !viewportPortrait()) clearForcedLandscape();
+    else if (forcedLandscape) layoutForcedCanvas();
+  });
+}
+
 function touchControlsOn() {
   return touchActive;
 }
@@ -42,6 +127,9 @@ let touchActive = isTouchDevice();
 
 // 手指按下：命中虚拟键 -> 变成对应的键盘状态
 function touchPress(gx, gy) {
+  // 竖屏（QQ 里转不过来）-> 第一次点屏幕就强制横过来
+  if (viewportPortrait() && !forcedLandscape) { enterForcedLandscape(); return null; }
+
   // 边角小钮要在任何状态下都能用（尤其是"暂停后点它恢复"）
   if (gameState === 'playing') {
     for (const t of TOUCH_TAPS) {
@@ -92,16 +180,39 @@ function touchReleaseKey(key) {
 function drawTouchControls() {
   if (!touchActive) return;
 
-  // 横屏提示：竖屏时画面很扁，直接告诉玩家转一下
-  if (typeof window !== 'undefined' && window.innerWidth < window.innerHeight) {
+  // 竖屏且还没强制旋转：给一个"点这里强制横屏"的按钮（QQ/微信里转不过来的情况）
+  if (viewportPortrait() && !forcedLandscape) {
     ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.72)';
+    ctx.fillStyle = 'rgba(0,0,0,0.78)';
     ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 52px "Segoe UI", Arial, sans-serif';
+
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('请横屏游玩', W / 2, H / 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 52px "Segoe UI", Arial, sans-serif';
+    ctx.fillText('请横屏游玩', W / 2, H / 2 - 96);
+
+    const bw = 520, bh = 104;
+    const bx = (W - bw) / 2, by = H / 2 - 10;
+    ctx.save();
+    ctx.shadowColor = 'rgba(90,210,255,0.85)';
+    ctx.shadowBlur = 28;
+    ctx.fillStyle = 'rgba(90,210,255,0.95)';
+    roundRect(bx, by, bw, bh, 18);
+    ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3;
+    roundRect(bx, by, bw, bh, 18);
+    ctx.stroke();
+
+    ctx.fillStyle = '#062033';
+    ctx.font = 'bold 40px "Segoe UI", Arial, sans-serif';
+    ctx.fillText('点这里强制横屏', W / 2, by + bh / 2 + 2);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.font = '26px "Segoe UI", Arial, sans-serif';
+    ctx.fillText('（点完把手机横过来：顶部朝左）', W / 2, by + bh + 46);
     ctx.restore();
     return;
   }

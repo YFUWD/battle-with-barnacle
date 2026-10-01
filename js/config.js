@@ -208,6 +208,19 @@ const mouse = { x: W * 0.5, y: 100 };
 
 function getMousePos(e) {
   const r = cvs.getBoundingClientRect();
+
+  // 强制横屏时画布被 CSS 转了 90°，坐标要反着算回去
+  if (typeof forcedLandscape !== 'undefined' && forcedLandscape) {
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const dh = r.width;    // 旋转后，画布的"显示高度"占的是屏幕宽度
+    const dw = r.height;   // 画布的"显示宽度"占的是屏幕高度
+    return {
+      x: (0.5 + (e.clientY - cy) / dw) * W,
+      y: (0.5 - (e.clientX - cx) / dh) * H
+    };
+  }
+
   return {
     x: (e.clientX - r.left) * (W / r.width),
     y: (e.clientY - r.top)  * (H / r.height)
